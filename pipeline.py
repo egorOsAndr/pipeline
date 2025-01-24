@@ -19,14 +19,14 @@ class BaseAPIRequester:
             self,
             end_url: str = '',
             params: dict = dict()
-            ) -> Optional[dict]:
+            ) -> Optional[requests.Response]:
         full_url: str = self.__base_url.rstrip('/') + '/' + end_url.lstrip('/')
         if not isinstance(params, dict):
             logging.info(
                 f'<Был передан не правильный тип данных {type(params)} для ' +
                 'атрибута params, требуется dict>. Будет выполнен запрос' +
                 ' без параметров')
-            params = dict()
+            params = {}
         try:
             response: requests.Response = requests.get(
                 full_url,
@@ -51,8 +51,53 @@ class BaseAPIRequester:
             return None
         else:
             logging.info('<Запрос успешно выполнен>')
-            return response.json()
+            return response
 
 
-obj = BaseAPIRequester('https://swapi.dev/api/')
-print(obj.get('people/'))
+class SWAPIRequester(BaseAPIRequester):
+    def __init__(self, base_url: str = 'https://swapi.dev/api/'):
+        super().__init__(base_url)
+
+    def get_catalog_swapi(self) -> tuple[str]:
+        response: Optional[requests.Response] = self.get()
+        if response is None:
+            return '',
+        try:
+            response_json = response.json()
+        except requests.JSONDecodeError:
+            logging.error('<Не удалось расшифровать текст в json>')
+            return '',
+        else:
+            logging.info('<Расшифровка прошла успешно>')
+            return tuple(response_json.keys())
+
+    def get_all_items(self, end_url: str) -> list[dict]:
+        available_catalog: tuple[str] = self.get_catalog_swapi()
+        all_category: list[dict] = []
+        next_url: Optional[str] = end_url + '/'
+        if end_url not in available_catalog:
+            logging.info(
+                f'<Данной категории: {available_catalog} среди доступных>'
+                )
+            next_url = None
+        while next_url:
+            response = self.get(next_url)
+            if response is None:
+                logging.error('<Запрос не выполнился>')
+                break
+            try:
+                response_json = response.json()
+            except requests.JSONDecodeError:
+                logging.error('<Не удалось расшифровать текст в json>')
+                break
+
+            part = response_json.get('results', [])
+            all_category.extend(part)
+
+            next_link = response_json.get('next')
+            if next_link:
+                base_url: str = self.__base_url
+                next_url = next_link.replace(base_url, '')
+            else:
+                next_url = None
+        return all_category
