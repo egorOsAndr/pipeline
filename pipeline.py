@@ -13,14 +13,14 @@ class BaseAPIRequester:
         correct_url: ParseResult = urlparse(base_url)
         if correct_url.scheme == '' or correct_url.netloc == '':
             raise ValueError(f'Не корректный URL был предоставлен: {base_url}')
-        self.__base_url: str = base_url
+        self._base_url: str = base_url
 
     def get(
             self,
             end_url: str = '',
             params: dict = dict()
             ) -> Optional[requests.Response]:
-        full_url: str = self.__base_url.rstrip('/') + '/' + end_url.lstrip('/')
+        full_url: str = self._base_url.rstrip('/') + '/' + end_url.lstrip('/')
         if not isinstance(params, dict):
             logging.info(
                 f'<Был передан не правильный тип данных {type(params)} для ' +
@@ -53,17 +53,12 @@ class BaseAPIRequester:
             logging.info('<Запрос успешно выполнен>')
             return response
 
-
-class SWAPIRequester(BaseAPIRequester):
-    def __init__(self, base_url: str = 'https://swapi.dev/api/'):
-        super().__init__(base_url)
-
-    def get_catalog_swapi(self) -> tuple[str]:
+    def get_catalog(self) -> tuple[str]:
         response: Optional[requests.Response] = self.get()
         if response is None:
             return '',
         try:
-            response_json = response.json()
+            response_json: dict = response.json()
         except requests.JSONDecodeError:
             logging.error('<Не удалось расшифровать текст в json>')
             return '',
@@ -71,15 +66,14 @@ class SWAPIRequester(BaseAPIRequester):
             logging.info('<Расшифровка прошла успешно>')
             return tuple(response_json.keys())
 
+
+class SWAPIRequester(BaseAPIRequester):
+    def __init__(self, base_url: str = 'https://swapi.dev/api/'):
+        super().__init__(base_url)
+
     def get_all_items(self, end_url: str) -> list[dict]:
-        available_catalog: tuple[str] = self.get_catalog_swapi()
         all_category: list[dict] = []
         next_url: Optional[str] = end_url + '/'
-        if end_url not in available_catalog:
-            logging.info(
-                f'<Данной категории: {available_catalog} среди доступных>'
-                )
-            next_url = None
         while next_url:
             response = self.get(next_url)
             if response is None:
@@ -96,8 +90,45 @@ class SWAPIRequester(BaseAPIRequester):
 
             next_link = response_json.get('next')
             if next_link:
-                base_url: str = self.__base_url
+                base_url: str = self._base_url
                 next_url = next_link.replace(base_url, '')
             else:
                 next_url = None
         return all_category
+
+
+class RickAndMortyRequester(BaseAPIRequester):
+    def __init__(self, base_url: str = 'https://rickandmortyapi.com/api/'):
+        super().__init__(base_url)
+
+    def get_all_items(self, end_url: str) -> list[dict]:
+        categor_data: list[dict] = []
+        next_url: Optional[str] = end_url + '/'
+        while next_url:
+            respone: Optional[requests.Response] = self.get(next_url)
+            if respone is None:
+                logging.error('<Запрос не выполнился>')
+                break
+            try:
+                respone_json: dict = respone.json()
+            except requests.JSONDecodeError:
+                logging.error('<Не удалось расшифровать текст в json>')
+                break
+            part = respone_json.get('results', [])
+            categor_data.extend(part)
+            info: dict = respone_json.get('info', {})
+            next_l: Optional[str] = info.get('next')
+            if next_l:
+                next_url = next_l.replace(self._base_url, '')
+            else:
+                next_url = None
+        return categor_data
+
+    def get_all_characters(self) -> list[dict]:
+        return self.get_all_items('character')
+
+    def get_all_locations(self) -> list[dict]:
+        return self.get_all_items('location')
+
+    def get_all_episodes(self) -> list[dict]:
+        return self.get_all_items('episode')
