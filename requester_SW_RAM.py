@@ -96,6 +96,24 @@ class SWAPIRequester(BaseAPIRequester):
                 next_url = None
         return all_category
 
+    def get_all_people(self) -> list[dict]:
+        return self.get_all_items('people')
+
+    def get_all_planets(self) -> list[dict]:
+        return self.get_all_items('planets')
+
+    def get_all_films(self) -> list[dict]:
+        return self.get_all_items('films')
+
+    def get_all_species(self) -> list[dict]:
+        return self.get_all_items('species')
+
+    def get_all_vehicles(self) -> list[dict]:
+        return self.get_all_items('vehicles')
+
+    def get_all_starships(self) -> list[dict]:
+        return self.get_all_items('starships')
+
 
 class RickAndMortyRequester(BaseAPIRequester):
     def __init__(self, base_url: str = 'https://rickandmortyapi.com/api/'):
