@@ -22,7 +22,4 @@ pip install --upgrade pip
 ```shell script
 pip install -r requirements.txt
 ```
-* После выполнения задания убедитесь что успешно пройдены все тесты
-```shell script
-pytest
-```
+
